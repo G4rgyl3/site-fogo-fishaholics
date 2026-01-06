@@ -1,0 +1,279 @@
+    :root {
+      --bg: #0b1220;
+      --card: rgba(2, 6, 23, 0.72);
+      --stroke: rgba(148, 163, 184, 0.18);
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent2: #a78bfa;
+      --good: #22c55e;
+    }
+
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(900px 600px at 20% 0%, rgba(56, 189, 248, 0.18), transparent 60%),
+        radial-gradient(800px 500px at 80% 10%, rgba(167, 139, 250, 0.14), transparent 60%),
+        radial-gradient(circle at top, #020617, var(--bg));
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      backdrop-filter: blur(10px);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 24px 60px rgba(0,0,0,55);
+    }
+
+
+    .card.full {
+      max-width: none;
+      grid-column: 1 / -1;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0.2px; }
+    .subtitle { margin-top: 6px; color: var(--muted); font-size: 0.9rem; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .control {
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(2, 6, 23, 0.45);
+    }
+
+    .control-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .label {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .valueBox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="number"] {
+      width: 92px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(2, 6, 23, 0.75);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    input[type="number"]:focus { outline: none; border-color: var(--accent); }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .results {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--stroke);
+      display: grid;
+      gap: 8px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      font-size: 0.95rem;
+    }
+
+    .row span:first-child { color: var(--muted); }
+    .value { font-weight: 700; }
+    .highlight { color: var(--good); font-size: 1.1rem; }
+
+    .chartWrap {
+      margin-top: 14px;
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(2, 6, 23, 0.45);
+    }
+
+    .chartHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+      gap: 10px;
+    }
+
+    .chartTitle { font-size: 0.9rem; color: var(--muted); }
+    .chartMeta { font-size: 0.8rem; color: var(--muted); }
+
+    canvas {
+      width: 100%;
+      height: 140px;
+      display: block;
+      border-radius: 10px;
+      background: rgba(2, 6, 23, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    footer {
+      margin-top: 14px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(2, 6, 23, 0.55);
+      color: var(--muted);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    button {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(2, 6, 23, 0.55);
+      color: var(--text);
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button:hover { border-color: rgba(56, 189, 248, 0.55); }
+
+    /* On-chain panels layout */
+    .onchainGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:12px;
+    }
+    @media (max-width: 900px){
+      .onchainGrid{ grid-template-columns:1fr; }
+    }
+
+    /* Two-column layout: calculator + on-chain panels */
+    .pageGrid{
+      display:grid;
+      grid-template-columns: minmax(520px, 1fr) minmax(360px, 520px);
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 1100px){
+      .pageGrid{ grid-template-columns: 1fr; }
+    }
+
+    .titleRow{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+    .title{ font-weight: 800; font-size: 1.05rem; }
+    .sub{ color: var(--muted); font-size: 0.85rem; }
+
+    ul.clean{ list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+    ul.clean li{ padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.14); background: rgba(2,6,23,0.35); font-size: 0.85rem; color: rgba(229,231,235,0.92); }
+
+    /* Process feed row "chip" layout (restore the nicer look) */
+    li.procRow{ padding: 0; border: none; background: transparent; }
+    .procRowInner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.18);
+      background: rgba(2,6,23,0.38);
+    }
+    .procLeft{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+    .procChips{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .chip{
+      display:inline-flex;
+      align-items:baseline;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.22);
+      background: rgba(2,6,23,0.55);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .chip b{ font-weight: 800; color: rgba(229,231,235,0.95); }
+    .chip span{ color: rgba(148,163,184,0.95); }
+    .chip--net{ border-color: rgba(56,189,248,0.45); background: rgba(56,189,248,0.10); }
+    .chip--gross{ border-color: rgba(148,163,184,0.24); background: rgba(148,163,184,0.08); }
+    .chip--fee{ border-color: rgba(167,139,250,0.35); background: rgba(167,139,250,0.10); }
+    .chip--me{ border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.10); }
+
+    .procMeta{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 10px;
+      color: rgba(148,163,184,0.92);
+      font-size: 0.78rem;
+    }
+    .procAddr{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+    .txLink{
+      color: rgba(56,189,248,0.95);
+      text-decoration: none;
+      font-weight: 750;
+      border: 1px solid rgba(56,189,248,0.30);
+      background: rgba(56,189,248,0.10);
+      padding: 8px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+    .txLink:hover{ border-color: rgba(56,189,248,0.60); }
+
+    /* Player scanner progress bar */
+    .scanBarWrap{
+      position: relative;
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.16);
+      overflow: hidden;
+      border: 1px solid rgba(148,163,184,0.18);
+    }
+    .scanBar{
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: rgba(56,189,248,0.90);
+      transition: width 160ms ease;
+    }
