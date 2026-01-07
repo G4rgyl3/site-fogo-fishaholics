@@ -5,217 +5,8 @@
   <title>🎣 Fish Per Cast Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <style>
-    :root {
-      --bg: #0b1220;
-      --card: rgba(2, 6, 23, 0.72);
-      --stroke: rgba(148, 163, 184, 0.18);
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent2: #a78bfa;
-      --good: #22c55e;
-    }
-
-    * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--text);
-      background:
-        radial-gradient(900px 600px at 20% 0%, rgba(56, 189, 248, 0.18), transparent 60%),
-        radial-gradient(800px 500px at 80% 10%, rgba(167, 139, 250, 0.14), transparent 60%),
-        radial-gradient(circle at top, #020617, var(--bg));
-      display: grid;
-      place-items: center;
-      padding: 18px;
-    }
-
-    .card {
-      width: 100%;
-      max-width: 520px;
-      background: var(--card);
-      border: 1px solid var(--stroke);
-      backdrop-filter: blur(10px);
-      border-radius: 18px;
-      padding: 22px;
-      box-shadow: 0 24px 60px rgba(0,0,0,55);
-    }
-
-
-    .card.full {
-      max-width: none;
-      grid-column: 1 / -1;
-    }
-
-    header {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-
-    h1 { margin: 0; font-size: 1.35rem; letter-spacing: 0.2px; }
-    .subtitle { margin-top: 6px; color: var(--muted); font-size: 0.9rem; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-      margin-top: 14px;
-    }
-
-    .control {
-      border: 1px solid var(--stroke);
-      border-radius: 14px;
-      padding: 12px;
-      background: rgba(2, 6, 23, 0.45);
-    }
-
-    .control-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-
-    .label {
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-
-    .valueBox {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    input[type="number"] {
-      width: 92px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      background: rgba(2, 6, 23, 0.75);
-      color: var(--text);
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-
-    input[type="number"]:focus { outline: none; border-color: var(--accent); }
-
-    input[type="range"] {
-      width: 100%;
-      accent-color: var(--accent);
-    }
-
-    .results {
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--stroke);
-      display: grid;
-      gap: 8px;
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: baseline;
-      font-size: 0.95rem;
-    }
-
-    .row span:first-child { color: var(--muted); }
-    .value { font-weight: 700; }
-    .highlight { color: var(--good); font-size: 1.1rem; }
-
-    .chartWrap {
-      margin-top: 14px;
-      border: 1px solid var(--stroke);
-      border-radius: 14px;
-      padding: 12px;
-      background: rgba(2, 6, 23, 0.45);
-    }
-
-    .chartHead {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 10px;
-      gap: 10px;
-    }
-
-    .chartTitle { font-size: 0.9rem; color: var(--muted); }
-    .chartMeta { font-size: 0.8rem; color: var(--muted); }
-
-    canvas {
-      width: 100%;
-      height: 140px;
-      display: block;
-      border-radius: 10px;
-      background: rgba(2, 6, 23, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.16);
-    }
-
-    footer {
-      margin-top: 14px;
-      text-align: center;
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      background: rgba(2, 6, 23, 0.55);
-      color: var(--muted);
-      font-size: 0.8rem;
-      white-space: nowrap;
-    }
-
-    button {
-      padding: 8px 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      background: rgba(2, 6, 23, 0.55);
-      color: var(--text);
-      font-weight: 650;
-      cursor: pointer;
-    }
-    button:hover { border-color: rgba(56, 189, 248, 0.55); }
-
-    /* On-chain panels layout */
-    .onchainGrid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-top:12px;
-    }
-    @media (max-width: 900px){
-      .onchainGrid{ grid-template-columns:1fr; }
-    }
-
-    /* Two-column layout: calculator + on-chain panels */
-    .pageGrid{
-      display:grid;
-      grid-template-columns: minmax(520px, 1fr) minmax(360px, 520px);
-      gap: 18px;
-      align-items: start;
-    }
-    @media (max-width: 1100px){
-      .pageGrid{ grid-template-columns: 1fr; }
-    }
-
-    .titleRow{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
-    .title{ font-weight: 800; font-size: 1.05rem; }
-    .sub{ color: var(--muted); font-size: 0.85rem; }
-
-    ul.clean{ list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
-    ul.clean li{ padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.14); background: rgba(2,6,23,0.35); font-size: 0.85rem; color: rgba(229,231,235,0.92); }
-  </style>
+  <!-- Single source of truth for styling -->
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
@@ -341,7 +132,7 @@
       <ul class="clean" id="scanTop" style="margin-top:10px;"></ul>
     </div>
 
-<div class="card full" id="processingCard">
+    <div class="card full" id="processingCard">
       <div class="titleRow">
         <div>
           <div class="title">🐟 Fish Processing</div>
@@ -361,7 +152,6 @@
         <ul class="clean" id="processedFeed"></ul>
       </div>
     </div>
-
   </div>
 
   <!-- Your math lives here -->
