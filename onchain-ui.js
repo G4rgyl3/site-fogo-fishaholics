@@ -8,10 +8,22 @@
 import {
   loadChainState,
   subscribeFishCaught,
+  fetchGlobalState,
 } from "./chain.js";
 import { Connection, PublicKey } from "https://esm.sh/@solana/web3.js@1.98.0";
 import { createYieldContext } from "./yield-context.js";
 import { createProcessFishWatcher } from "./process-fish-watcher.js";
+import { decodePlayerState } from "./chain-decoders.js";
+import { DISC_PLAYER } from "./chain-discriminators.js";
+import bs58 from "https://esm.sh/bs58@5";
+
+import { shortAddr } from "./onchain-ui-utils.js";
+import { fmtBig, formatTokenAmount, formatFishFromRaw, formatPercentOf, fmtTimeFromI64 } from "./onchain-ui-formatters.js";
+
+// ✅ NEW: renderers
+import { renderChainSnapshot } from "./ui/render-snapshot.js";
+import { renderProcessingRow } from "./ui/render-processing-row.js";
+import { renderScanRow } from "./ui/render-scan-row.js";
 
 // Fishing program (from explorer logs)
 const FOGO_FISHING_PROGRAM_ID = new PublicKey("SEAyjT1FUx3JyXJnWt5NtjELDwuU9XsoZeZVPVvweU4");
@@ -34,90 +46,6 @@ const processWatcher = createProcessFishWatcher({
   programId: FOGO_FISHING_PROGRAM_ID,
 });
 
-function shortAddr(a) {
-  if (!a) return "—";
-  const s = String(a);
-  return s.length > 12 ? `${s.slice(0, 4)}…${s.slice(-4)}` : s;
-}
-
-function fracToFixedString(frac, decimals) {
-  let s = frac.toString();
-  while (s.length < decimals) s = "0" + s;
-  // trim trailing zeros for display
-  s = s.replace(/0+$/, "");
-  return s.length ? s : "0";
-}
-
-
-function fmtBig(x) {
-  try {
-    const comma = (s) => String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    if (typeof x === "bigint") return comma(x.toString());
-    if (typeof x === "number") return Number.isFinite(x) ? comma(String(Math.trunc(x))) : "—";
-    if (x == null) return "—";
-    // If it's already a string number, comma it.
-    const s = String(x);
-    if (/^-?\d+$/.test(s)) return comma(s);
-    return s;
-  } catch {
-    return "—";
-  }
-}
-
-function commaIntString(s) {
-  return String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
-
-function formatTokenAmount(raw, decimals, { maxFrac = 6 } = {}) {
-  try {
-    const r = BigInt(raw);
-    const d = BigInt(10) ** BigInt(decimals);
-    const whole = r / d;
-    let frac = (r % d).toString().padStart(decimals, "0");
-    if (maxFrac < decimals) frac = frac.slice(0, maxFrac);
-    frac = frac.replace(/0+$/, "");
-    const w = commaIntString(whole.toString());
-    return frac.length ? `${w}.${frac}` : w;
-  } catch {
-    return "—";
-  }
-}
-
-// FISH amounts are stored as raw integers on-chain. The SPL mint uses 6 decimals.
-function formatFishFromRaw(raw, { maxFrac = 6 } = {}) {
-  return formatTokenAmount(raw, 6, { maxFrac });
-}
-
-// Returns e.g. "0.2929%" for part/total.
-function formatPercentOf(partRaw, totalRaw, { dp = 4 } = {}) {
-  try {
-    const part = BigInt(partRaw);
-    const total = BigInt(totalRaw);
-    if (total <= 0n) return "—";
-
-    const scale = 10n ** BigInt(dp); // decimal places on the percent value
-    // percentScaled = (part/total) * 100 * scale
-    const numer = part * 100n * scale;
-    const val = (numer + total / 2n) / total; // rounded
-
-    const intPart = val / scale;
-    const fracPart = (val % scale).toString().padStart(Number(dp), "0");
-    return `${intPart.toString()}.${fracPart}%`;
-  } catch {
-    return "—";
-  }
-}
-
-function fmtTimeFromI64(i64) {
-  try {
-    const n = typeof i64 === "bigint" ? Number(i64) : Number(i64);
-    if (!Number.isFinite(n) || n <= 0) return "—";
-    return new Date(n * 1000).toLocaleString();
-  } catch {
-    return "—";
-  }
-}
-
 function setProcStatus(s) {
   const el = document.getElementById("procStatus");
   if (el) el.textContent = s;
@@ -136,11 +64,10 @@ function setSnapshotHTML(html) {
 }
 
 function requireGlobals() {
-  // fish.html exposes these after the non-module script runs.
   const { els, recalc } = window;
   if (!els || typeof recalc !== "function") {
     throw new Error(
-      "UI globals not ready. Ensure fish.html sets window.els and window.recalc before loading onchain-ui.js"
+      "UI globals not ready. Ensure calc-ui.js sets window.els and window.recalc before loading onchain-ui.js"
     );
   }
   return { els, recalc };
@@ -183,7 +110,7 @@ function makeMePillClickable() {
   const pill = document.getElementById("activeMe");
   if (!pill) return;
 
-  // Make it behave like a button without changing fish.html
+  // NOTE: Phase 2 will remove direct style mutations (class toggle instead)
   pill.style.cursor = "pointer";
   pill.style.userSelect = "none";
   pill.setAttribute("role", "button");
@@ -205,11 +132,9 @@ function makeMePillClickable() {
   });
 }
 
-
 // Init "me" state on page load
 setActiveMePill();
 makeMePillClickable();
-// Best-effort warm cache for yield calcs
 (async () => {
   await yieldCtx.refresh({ force: true });
   setActiveMePill();
@@ -240,9 +165,8 @@ if (clearMeBtn) {
 // Global ProcessFish watcher
 // ----------------------------
 
-function addProcessFeedRow({
+function addProcessFeedRowRendered({
   signature,
-  err,
   playerStr,
   netStr,
   grossStr,
@@ -251,13 +175,23 @@ function addProcessFeedRow({
 }) {
   const ul = document.getElementById("processedFeed");
   if (!ul) return;
-  const li = document.createElement("li");
-  const t = new Date().toLocaleTimeString();
-  const sigShort = `${signature.slice(0, 8)}…`;
-  const base = `${netStr} net (${grossStr} gross, fee ${feeStr}) → ${shortAddr(playerStr)} · ${sigShort} @ ${t}`;
-  const mine = myYieldStr ? `  |  me +${myYieldStr}` : "";
-  li.textContent = base + mine + (err ? ` (err)` : "");
-  ul.prepend(li);
+
+  const timeStr = new Date().toLocaleTimeString();
+
+  // ✅ Rendered row (HTML)
+  const html = renderProcessingRow({
+    signature,
+    timeStr,
+    player: playerStr,
+    playerShort: shortAddr(playerStr),
+    net: netStr,
+    gross: grossStr,
+    fee: feeStr,
+    myYield: myYieldStr || "",
+  });
+
+  ul.insertAdjacentHTML("afterbegin", html);
+
   while (ul.children.length > 25) ul.removeChild(ul.lastChild);
 }
 
@@ -266,7 +200,6 @@ async function startProcessFishWatcher() {
 
   const feed = document.getElementById("processedFeed");
   if (feed && feed.childElementCount === 0) {
-    // keep existing feed if user toggles off/on, but start with clean slate on first boot
     feed.innerHTML = "";
   }
 
@@ -276,11 +209,9 @@ async function startProcessFishWatcher() {
     onEvent: async (evt) => {
       const { signature } = evt;
 
-      // If we couldn't decode details (pruned tx, etc), still log the detection.
       if (!evt.decoded) {
-        addProcessFeedRow({
+        addProcessFeedRowRendered({
           signature,
-          err: null,
           playerStr: "—",
           netStr: "—",
           grossStr: "—",
@@ -305,9 +236,8 @@ async function startProcessFishWatcher() {
         }
       } catch {}
 
-      addProcessFeedRow({
+      addProcessFeedRowRendered({
         signature,
-        err: null,
         playerStr,
         netStr,
         grossStr,
@@ -327,7 +257,6 @@ async function stopProcessFishWatcher() {
 // Auto-start on page load (global-only) and wire toggle
 const procToggle = document.getElementById("procLiveToggle");
 if (procToggle) {
-  // Start immediately if checked
   if (procToggle.checked) startProcessFishWatcher();
   else setProcStatus("paused");
 
@@ -336,7 +265,6 @@ if (procToggle) {
     else await stopProcessFishWatcher();
   });
 } else {
-  // Fallback: start anyway
   startProcessFishWatcher();
 }
 
@@ -353,7 +281,7 @@ function setScanBarPct(pct) {
   const el = document.getElementById("scanBar");
   if (!el) return;
   const p = Math.max(0, Math.min(100, Number(pct) || 0));
-  el.style.width = `${p}%`;
+  el.style.width = `${p}%`; // Phase 2: class toggle
 }
 
 function setScanCount(s) {
@@ -369,7 +297,6 @@ async function scanPlayersOnce() {
   setScanCount("—");
   setScanBarPct(4);
 
-  // Animate the bar while the RPC call runs
   let alive = true;
   let pct = 4;
   const t = setInterval(() => {
@@ -385,7 +312,6 @@ async function scanPlayersOnce() {
       filters: [{ memcmp: { offset: 0, bytes: discB58 } }],
     });
 
-    // Optional: fetch global so we can show % of total unprocessed
     let global = null;
     try {
       global = await fetchGlobalState({ connection: procConn });
@@ -395,9 +321,7 @@ async function scanPlayersOnce() {
     for (const a of accounts) {
       try {
         rows.push(decodePlayerState(a.account.data));
-      } catch {
-        // ignore decode failures
-      }
+      } catch {}
     }
 
     rows.sort((a, b) => {
@@ -416,10 +340,17 @@ async function scanPlayersOnce() {
         const owner = p?.owner?.toBase58?.() || "—";
         const up = p?.unprocessedFish ?? 0n;
         const upStr = formatFishFromRaw(up, { maxFrac: 6 });
-        const pctStr = totalUp != null ? ` (${formatPercentOf(up, totalUp, { dp: 4 })})` : "";
-        const li = document.createElement("li");
-        li.innerHTML = `<b>${shortAddr(owner)}</b> · unproc ${upStr}${pctStr}`;
-        topUl.appendChild(li);
+        const pctStr = totalUp != null ? formatPercentOf(up, totalUp, { dp: 4 }) : "";
+
+        topUl.insertAdjacentHTML(
+          "beforeend",
+          renderScanRow({
+            owner,
+            ownerShort: shortAddr(owner),
+            unprocessed: upStr,
+            pct: pctStr,
+          })
+        );
       }
     }
 
@@ -437,11 +368,7 @@ async function scanPlayersOnce() {
 }
 
 const scanBtn = document.getElementById("scanPlayers");
-if (scanBtn) {
-  scanBtn.addEventListener("click", () => {
-    scanPlayersOnce();
-  });
-}
+if (scanBtn) scanBtn.addEventListener("click", () => scanPlayersOnce());
 
 let unsubscribeFishCaught = null;
 
@@ -460,10 +387,8 @@ if (btn) {
         ownerPubkey,
       });
 
-      // Enable/disable "Set as me" based on whether we successfully loaded a player
       if (setAsMeBtn) setAsMeBtn.disabled = !player || !ownerStr;
 
-      // push values into your existing sliders
       if (Number.isFinite(difficulty)) {
         els.diffNum.value = String(difficulty);
         els.diffRange.value = String(difficulty);
@@ -476,47 +401,20 @@ if (btn) {
       recalc();
       setStatus("synced ✓");
 
-      // Render on-chain snapshot
-      setSnapshotHTML(`
-        <div style="display:grid; grid-template-columns: 160px 1fr; gap: 6px 12px;">
-          <div style="opacity:0.7;">Difficulty</div><div>${fmtBig(globalState.currentDifficulty)}</div>
-          <div style="opacity:0.7;">Total network power</div><div>${fmtBig(globalState.totalNetworkPower)}</div>
-          <div style="opacity:0.7;">Total fish minted</div><div>${formatFishFromRaw(globalState.totalFishMinted, { maxFrac: 6 })}</div>
-          <div style="opacity:0.7;">Total unprocessed fish</div><div>${formatFishFromRaw(globalState.totalUnprocessedFish, { maxFrac: 6 })}</div>
-          <div style="opacity:0.7;">Daily target emission</div><div>${formatFishFromRaw(globalState.dailyTargetEmission, { maxFrac: 6 })}</div>
-          <div style="opacity:0.7;">Last difficulty adj</div><div>${fmtTimeFromI64(globalState.lastDifficultyAdjustment)}</div>
-        </div>
+      // ✅ Snapshot rendering moved to renderer
+      setSnapshotHTML(
+        renderChainSnapshot({
+          global: globalState,
+          player,
+          // pass helpers so renderer stays pure
+          fmtBig,
+          formatFishFromRaw,
+          formatPercentOf,
+          fmtTimeFromI64,
+        })
+      );
 
-        <hr style="border:none; border-top:1px solid rgba(148,163,184,0.2); margin: 10px 0;" />
-
-        ${
-          player
-            ? `
-              <div style="font-weight:700; margin-bottom:6px;">Player</div>
-              <div style="display:grid; grid-template-columns: 160px 1fr; gap: 6px 12px;">
-                <div style="opacity:0.7;">Owner</div><div style="word-break: break-all;">${player.owner.toBase58()}</div>
-                <div style="opacity:0.7;">Rod level</div><div>${player.rodLevel}</div>
-                <div style="opacity:0.7;">Boat tier</div><div>${player.boatTier}</div>
-                <div style="opacity:0.7;">Casts</div><div>${fmtBig(player.castCount)}</div>
-                <div style="opacity:0.7;">Power</div><div>${fmtBig(player.power)}</div>
-                <div style="opacity:0.7;">Durability</div><div>${player.currentDurability}/${player.maxDurability}</div>
-                <div style="opacity:0.7;">Unprocessed fish</div>
-                <div>
-                  ${formatFishFromRaw(player.unprocessedFish, { maxFrac: 6 })}
-                  <span style="opacity:0.7;"> (${formatPercentOf(player.unprocessedFish, globalState.totalUnprocessedFish, { dp: 4 })})</span>
-                </div>
-                <div style="opacity:0.7;">Supercast remaining</div><div>${player.supercastRemainingCasts}</div>
-                <div style="opacity:0.7;">Upgrade in progress</div><div>${player.upgradeInProgress ? "yes" : "no"}</div>
-                <div style="opacity:0.7;">Honeypot</div><div>${player.isHoneypot ? "yes 🐝" : "no"}</div>
-              </div>
-            `
-            : `
-              <div style="opacity:0.7;">No PlayerState found for that owner (you may not have fished yet, or you’re on a different cluster).</div>
-            `
-        }
-      `);
-
-      // If the loaded owner is the active "me", refresh the yield context from these fresh reads
+      // If loaded owner is active "me", refresh yield context
       {
         const { activeOwner } = yieldCtx.getState();
         if (activeOwner && ownerStr && activeOwner === ownerStr) {
@@ -525,7 +423,7 @@ if (btn) {
         }
       }
 
-// Start event stream after first successful sync
+      // Start event stream after first successful sync
       if (unsubscribeFishCaught) await unsubscribeFishCaught();
       unsubscribeFishCaught = subscribeFishCaught({
         connection,
