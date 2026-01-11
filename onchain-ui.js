@@ -20,6 +20,8 @@ import bs58 from "https://esm.sh/bs58@5";
 import { shortAddr } from "./onchain-ui-utils.js";
 import { fmtBig, formatTokenAmount, formatFishFromRaw, formatPercentOf, fmtTimeFromI64 } from "./onchain-ui-formatters.js";
 
+import { savePlayerScan, loadPlayerScan } from "./player-scan-store.js";
+
 // ✅ NEW: renderers
 import { renderChainSnapshot } from "./ui/render-snapshot.js";
 import { renderProcessingRow } from "./ui/render-processing-row.js";
@@ -329,6 +331,25 @@ async function scanPlayersOnce() {
       const bb = b?.unprocessedFish ?? 0n;
       return bb > aa ? 1 : bb < aa ? -1 : 0;
     });
+
+    // ---- persist scan for stats ----
+    const persistRows = rows.map((p) => ({
+      owner: p.owner.toBase58(),
+      unprocessedFishRaw: String(p.unprocessedFish),
+    }));
+
+    const payload = {
+      fetchedAt: Date.now(),
+      rows: persistRows,
+    };
+
+    window.playerScan = payload;
+
+    try {
+      await savePlayerScan(payload);
+    } catch (e) {
+      console.warn("Failed to save player scan", e);
+    }
 
     setScanCount(`${rows.length.toLocaleString()} players`);
 
