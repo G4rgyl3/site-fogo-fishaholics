@@ -75,6 +75,32 @@ function requireGlobals() {
   return { els, recalc };
 }
 
+function applyPlayerToCalcUI({ els, player }) {
+  if (!els || !player) return;
+
+  // Only set if the durability controls exist (card present)
+  const hasDur = els.durCurNum && els.durMaxNum;
+  if (!hasDur) return;
+
+  // Values from chain snapshot
+  const cur = Number(player.currentDurability ?? 0);
+  const max = Number(player.maxDurability ?? 0);
+
+  if (Number.isFinite(max) && max > 0) {
+    els.durMaxNum.value = String(max);
+    if (els.durMaxRange) els.durMaxRange.value = String(max);
+  }
+
+  if (Number.isFinite(cur) && cur >= 0) {
+    els.durCurNum.value = String(cur);
+    if (els.durCurRange) {
+      // keep slider max aligned with max durability
+      if (Number.isFinite(max) && max > 0) els.durCurRange.max = String(max);
+      els.durCurRange.value = String(cur);
+    }
+  }
+}
+
 const statusEl = document.getElementById("chainStatus");
 const setStatus = (s) => {
   if (statusEl) statusEl.textContent = s;
@@ -407,6 +433,9 @@ if (btn) {
       const { difficulty, rodLevel, connection, player, global: globalState } = await loadChainState({
         ownerPubkey,
       });
+
+      // ✅ NEW: populate durability throughput card from loaded player
+      applyPlayerToCalcUI({ els, player });
 
       if (setAsMeBtn) setAsMeBtn.disabled = !player || !ownerStr;
 

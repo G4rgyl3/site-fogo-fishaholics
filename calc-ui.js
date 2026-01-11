@@ -11,6 +11,27 @@
 //   - window.els
 //   - window.recalc()
 
+function clampInt(n, lo, hi) {
+  n = Number(n);
+  if (!Number.isFinite(n)) n = lo;
+  n = Math.trunc(n);
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function comma(x) {
+  try {
+    return Number(x).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  } catch {
+    return String(x);
+  }
+}
+
+function fmtFloat(x, dp = 4) {
+  if (!Number.isFinite(x)) return "—";
+  return x.toLocaleString(undefined, { maximumFractionDigits: dp });
+}
+
+
 (function () {
   'use strict';
 
@@ -24,6 +45,25 @@
     fishPerCastOut: document.getElementById('fishPerCastOut'),
     chart: document.getElementById('chart'),
     chartMeta: document.getElementById('chartMeta'),
+
+    // Durability inputs
+    durCurNum: document.getElementById("durCurNum"),
+    durCurRange: document.getElementById("durCurRange"),
+    durMaxNum: document.getElementById("durMaxNum"),
+    durMaxRange: document.getElementById("durMaxRange"),
+
+    // Durability outputs
+    durCurHint: document.getElementById("durCurHint"),
+    durMaxHint: document.getElementById("durMaxHint"),
+    durRegenOut: document.getElementById("durRegenOut"),
+    castsBestOut: document.getElementById("castsBestOut"),
+    castsLowOut: document.getElementById("castsLowOut"),
+    castsBefore20Out: document.getElementById("castsBefore20Out"),
+    casts24BestOut: document.getElementById("casts24BestOut"),
+    casts24LowOut: document.getElementById("casts24LowOut"),
+    fishDayBestOut: document.getElementById("fishDayBestOut"),
+    fishDayLowOut: document.getElementById("fishDayLowOut"),
+
   };
 
   function requireMath() {
@@ -171,6 +211,117 @@
     });
   }
 
+  function updateDurabilityCard(els, fishPerCast) {
+    // If the card isn't present, silently do nothing.
+    if (!els?.durCurNum || !els?.durMaxNum) return;
+
+    // Read + clamp
+    const maxDur = clampInt(els.durMaxNum.value, 1, 20000);
+    const curDur = clampInt(els.durCurNum.value, 0, maxDur);
+
+    // Keep sliders in sync
+    if (els.durMaxRange) els.durMaxRange.value = String(maxDur);
+    if (els.durCurRange) {
+      els.durCurRange.max = String(maxDur);
+      els.durCurRange.value = String(curDur);
+    }
+
+    // UI hints
+    const threshold = Math.ceil(maxDur * 0.2);
+    if (els.durCurHint) els.durCurHint.textContent = `${curDur}/${maxDur}`;
+    if (els.durMaxHint) els.durMaxHint.textContent = `20% = ${threshold}`;
+
+    // Rates (your spec)
+    const castsPerSecBest = 1 / 3;   // ≥20%
+    const castsPerSecLow = 1 / 12;   // <20%
+    const castsPerDayBest = castsPerSecBest * 86400; // 28,800
+    const castsPerDayLow = castsPerSecLow * 86400;   // 7,200
+
+    // buffer above the 20% floor
+    const castsBefore20 = Math.max(0, curDur - threshold);
+
+    // 24h throughput models (simple + intuitive)
+    // - stay ≥20%: spend buffer above 20% + fast regen
+    const max24Best = castsBefore20 + castsPerDayBest;
+
+    // - let it drop <20%: spend everything you have now + slow regen
+    const max24Low = curDur + castsPerDayLow;
+
+    // Output
+    if (els.durRegenOut) els.durRegenOut.textContent = `≥20%: +1/3s | <20%: +1/12s`;
+    if (els.castsBestOut) els.castsBestOut.textContent = `${fmtFloat(castsPerSecBest, 4)} /s`;
+    if (els.castsLowOut) els.castsLowOut.textContent = `${fmtFloat(castsPerSecLow, 4)} /s`;
+    if (els.castsBefore20Out) els.castsBefore20Out.textContent = `${comma(castsBefore20)} casts`;
+    if (els.casts24BestOut) els.casts24BestOut.textContent = `${comma(Math.floor(max24Best))}`;
+    if (els.casts24LowOut) els.casts24LowOut.textContent = `${comma(Math.floor(max24Low))}`;
+
+    const fishDayBest = Number.isFinite(fishPerCast) ? fishPerCast * max24Best : NaN;
+    const fishDayLow = Number.isFinite(fishPerCast) ? fishPerCast * max24Low : NaN;
+
+    if (els.fishDayBestOut) els.fishDayBestOut.textContent = fmtFloat(fishDayBest, 6);
+    if (els.fishDayLowOut) els.fishDayLowOut.textContent = fmtFloat(fishDayLow, 6);
+  }
+
+  function wireDurability(els) {
+    // If the durability card isn't present, do nothing.
+    if (!els.durCurNum || !els.durMaxNum) return;
+
+    // Keep current/max paired, but max affects current range's max.
+    const syncCurMax = () => {
+      const maxDur = clampInt(els.durMaxNum.value, 1, 20000);
+      const curDur = clampInt(els.durCurNum.value, 0, maxDur);
+
+      // clamp back
+      els.durMaxNum.value = String(maxDur);
+      els.durCurNum.value = String(curDur);
+
+      if (els.durMaxRange) els.durMaxRange.value = String(maxDur);
+      if (els.durCurRange) {
+        els.durCurRange.max = String(maxDur);
+        els.durCurRange.value = String(curDur);
+      }
+    };
+
+    // Max durability controls
+    if (els.durMaxRange) {
+      els.durMaxRange.addEventListener("input", () => {
+        els.durMaxNum.value = els.durMaxRange.value;
+        syncCurMax();
+        recalc();
+      });
+    }
+    els.durMaxNum.addEventListener("input", () => {
+      syncCurMax();
+      if (els.durMaxRange) els.durMaxRange.value = els.durMaxNum.value;
+      recalc();
+    });
+    els.durMaxNum.addEventListener("change", () => {
+      syncCurMax();
+      recalc();
+    });
+
+    // Current durability controls
+    if (els.durCurRange) {
+      els.durCurRange.addEventListener("input", () => {
+        els.durCurNum.value = els.durCurRange.value;
+        syncCurMax();
+        recalc();
+      });
+    }
+    els.durCurNum.addEventListener("input", () => {
+      syncCurMax();
+      if (els.durCurRange) els.durCurRange.value = els.durCurNum.value;
+      recalc();
+    });
+    els.durCurNum.addEventListener("change", () => {
+      syncCurMax();
+      recalc();
+    });
+
+    // Ensure ranges are consistent on first load
+    syncCurMax();
+  }
+
   function recalc() {
     requireMath();
 
@@ -193,6 +344,7 @@
 
     if (els.chartMeta) els.chartMeta.textContent = `Difficulty: ${formatInt(difficulty)}`;
     drawChart(level, difficulty);
+    updateDurabilityCard(window.els, fishPerCast);
   }
 
   function wirePair(rangeEl, numEl) {
@@ -221,6 +373,7 @@
 
   wirePair(els.levelRange, els.levelNum);
   wirePair(els.diffRange, els.diffNum);
+  wireDurability(els);
 
   // Initial draw
   recalc();

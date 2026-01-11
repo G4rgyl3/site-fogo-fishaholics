@@ -70,6 +70,53 @@
       <footer>Using fish.js game math</footer>
     </div>
 
+    <!-- Durability Throughput -->
+    <div class="card" id="durabilityCard">
+      <header>
+        <h2>🛠️ Durability Throughput</h2>
+        <div class="subtitle">Regen rates, casts/sec, and expected output.</div>
+      </header>
+
+      <div class="grid">
+        <!-- Current durability -->
+        <div class="control">
+          <div class="control-top">
+            <div class="label">Current durability</div>
+            <div class="valueBox">
+              <input id="durCurNum" type="number" min="0" step="1" value="400" />
+              <span class="pill" id="durCurHint">—</span>
+            </div>
+          </div>
+          <input id="durCurRange" type="range" min="0" max="1000" step="1" value="400" />
+        </div>
+
+        <!-- Max durability -->
+        <div class="control">
+          <div class="control-top">
+            <div class="label">Max durability</div>
+            <div class="valueBox">
+              <input id="durMaxNum" type="number" min="1" step="1" value="1000" />
+              <span class="pill" id="durMaxHint">20% = —</span>
+            </div>
+          </div>
+          <input id="durMaxRange" type="range" min="1" max="20000" step="1" value="1000" />
+        </div>
+      </div>
+
+      <div class="results">
+        <div class="row"><span>Durability regen rate</span><span class="value" id="durRegenOut">—</span></div>
+        <div class="row"><span>Casts/sec (best: ≥20%)</span><span class="value" id="castsBestOut">—</span></div>
+        <div class="row"><span>Casts/sec (below 20%)</span><span class="value" id="castsLowOut">—</span></div>
+        <div class="row"><span>Casts available now (before &lt;20%)</span><span class="value" id="castsBefore20Out">—</span></div>
+        <div class="row"><span>Max casts next 24h (stay ≥20%)</span><span class="value" id="casts24BestOut">—</span></div>
+        <div class="row"><span>Max casts next 24h (let it drop &lt;20%)</span><span class="value" id="casts24LowOut">—</span></div>
+        <div class="row"><span>Expected FISH / day (stay ≥20%)</span><span class="value highlight" id="fishDayBestOut">—</span></div>
+        <div class="row"><span>Expected FISH / day (below 20% pace)</span><span class="value" id="fishDayLowOut">—</span></div>
+      </div>
+
+      <footer>Uses current “Expected FISH / Cast” from the calculator above.</footer>
+    </div>
+
     <div class="card">
       <div class="titleRow">
         <div>
@@ -133,7 +180,7 @@
       <ul class="clean" id="scanTop" style="margin-top:10px;"></ul>
     </div>
 
-<div class="card full" id="processingCard">
+    <div class="card full" id="processingCard">
       <div class="titleRow">
         <div>
           <div class="title">🐟 Fish Processing</div>
