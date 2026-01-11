@@ -323,59 +323,96 @@ async function scanPlayersOnce() {
 
   setScanStatus("scanning…");
   setScanCount("—");
-  setScanBarPct(4);
+  setScanBarPct(2);
 
-  let alive = true;
-  let pct = 4;
-  const t = setInterval(() => {
-    if (!alive) return;
-    pct = Math.min(92, pct + (pct < 65 ? 6 : 2));
-    setScanBarPct(pct);
-  }, 220);
+  const discB58 = bs58.encode(DISC_PLAYER);
+
+  // Anchor discriminator is 8 bytes; owner Pubkey is very commonly the next field.
+  // If your layout differs, change this offset.
+  const OWNER_OFFSET = 8;
+
+  const chunk = (arr, size) => {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  };
+
+  // Promise pool helper to avoid spamming RPC with 256 concurrent requests
+  async function runPool(items, worker, concurrency = 6) {
+    const results = [];
+    let idx = 0;
+    const runners = Array.from({ length: concurrency }, async () => {
+      while (idx < items.length) {
+        const i = idx++;
+        results[i] = await worker(items[i], i);
+      }
+    });
+    await Promise.all(runners);
+    return results;
+  }
 
   try {
-    const discB58 = bs58.encode(DISC_PLAYER);
-    const accounts = await procConn.getProgramAccounts(FOGO_FISHING_PROGRAM_ID, {
-      commitment: "confirmed",
-      filters: [{ memcmp: { offset: 0, bytes: discB58 } }],
-    });
+    // 1) Sharded pubkey discovery (avoids "accumulated scan results exceeded the limit")
+    const bytes0to255 = Array.from({ length: 256 }, (_, i) => i);
 
+    setScanCount("discovering players (sharded)…");
+    setScanBarPct(5);
+
+    const shardResults = await runPool(
+      bytes0to255,
+      async (b, i) => {
+        // memcmp bytes expects base58 of the raw bytes you're matching
+        const oneByte = bs58.encode(Uint8Array.from([b]));
+
+        const keyed = await procConn.getProgramAccounts(FOGO_FISHING_PROGRAM_ID, {
+          commitment: "confirmed",
+          filters: [
+            { memcmp: { offset: 0, bytes: discB58 } },
+            { memcmp: { offset: OWNER_OFFSET, bytes: oneByte } },
+          ],
+          dataSlice: { offset: 0, length: 0 },
+        });
+
+        // progress through discovery: 5% -> 35%
+        if (i % 4 === 0) setScanBarPct(5 + Math.floor((30 * (i + 1)) / 256));
+        return keyed.map((x) => x.pubkey);
+      },
+      6 // concurrency; raise to 8 if your RPC is strong, lower to 3 if it rate-limits
+    );
+
+    const pubkeys = shardResults.flat();
+    setScanCount(`${pubkeys.length.toLocaleString()} players (loading…)`);
+
+    // 2) Load global state (optional)
     let global = null;
     try {
       global = await fetchGlobalState({ connection: procConn });
     } catch {}
 
+    // 3) Batch fetch full datas and decode
     const rows = [];
-    for (const a of accounts) {
-      try {
-        rows.push(decodePlayerState(a.account.data));
-      } catch {}
+    const batches = chunk(pubkeys, 100);
+
+    for (let i = 0; i < batches.length; i++) {
+      const infos = await procConn.getMultipleAccountsInfo(batches[i], "confirmed");
+      for (const info of infos) {
+        if (!info?.data) continue;
+        try {
+          rows.push(decodePlayerState(info.data));
+        } catch {}
+      }
+
+      // progress through loading: 35% -> 95%
+      const prog = 35 + Math.floor((60 * (i + 1)) / batches.length);
+      setScanBarPct(Math.min(95, prog));
     }
 
+    // 4) Sort + render top 10
     rows.sort((a, b) => {
       const aa = a?.unprocessedFish ?? 0n;
       const bb = b?.unprocessedFish ?? 0n;
       return bb > aa ? 1 : bb < aa ? -1 : 0;
     });
-
-    // ---- persist scan for stats ----
-    const persistRows = rows.map((p) => ({
-      owner: p.owner.toBase58(),
-      unprocessedFishRaw: String(p.unprocessedFish),
-    }));
-
-    const payload = {
-      fetchedAt: Date.now(),
-      rows: persistRows,
-    };
-
-    window.playerScan = payload;
-
-    try {
-      await savePlayerScan(payload);
-    } catch (e) {
-      console.warn("Failed to save player scan", e);
-    }
 
     setScanCount(`${rows.length.toLocaleString()} players`);
 
@@ -408,9 +445,6 @@ async function scanPlayersOnce() {
     setScanStatus("error");
     setScanBarPct(100);
     setScanCount("scan failed (see console)");
-  } finally {
-    alive = false;
-    clearInterval(t);
   }
 }
 
