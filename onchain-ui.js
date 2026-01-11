@@ -479,6 +479,9 @@ async function scanPlayersOnce() {
     setPlayerStore(rows /*, { byAccountPairs }*/);
     savePlayersCache();
     
+    const stats = window.computeCoreStats(window.playerStore?.players || []);
+    window.latestPlayerStats = stats;
+
     // 4) Sort + render top 10
     rows.sort((a, b) => {
       const aa = a?.unprocessedFish ?? 0n;
