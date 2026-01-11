@@ -446,3 +446,95 @@
   font-size: 11px;
   word-break: break-all;
 }
+
+
+/* Global stats panel (icon tiles) */
+.gstatsPanel {
+  padding: 4px 0;
+}
+
+.gstatsHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.gstatsTitle {
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  font-size: 18px;
+}
+
+.gstatsSub {
+  opacity: 0.75;
+  font-size: 12px;
+}
+
+.gstatsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .gstatsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .gstatsGrid { grid-template-columns: 1fr; }
+}
+
+.gstat {
+  position: relative;
+  border-radius: 14px;
+  padding: 14px 14px;
+  background: linear-gradient(180deg, rgba(50,120,255,0.10), rgba(0,0,0,0.08));
+  border: 1px solid rgba(90,160,255,0.18);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.gstat::after {
+  content: "";
+  position: absolute;
+  inset: -40% -40% auto auto;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle at center, rgba(90,160,255,0.22), transparent 60%);
+  transform: rotate(12deg);
+  pointer-events: none;
+}
+
+.gstatIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(90,160,255,0.14);
+  border: 1px solid rgba(90,160,255,0.22);
+  font-size: 20px;
+}
+
+.gstatLabel {
+  opacity: 0.8;
+  font-size: 12px;
+}
+
+.gstatValue {
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+  margin-top: 2px;
+}
+
+.gstatSub {
+  opacity: 0.7;
+  font-size: 11px;
+  margin-top: 2px;
+}

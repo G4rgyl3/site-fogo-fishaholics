@@ -26,6 +26,7 @@ import { savePlayerScan, loadPlayerScan } from "./player-scan-store.js";
 import { renderChainSnapshot } from "./ui/render-snapshot.js";
 import { renderProcessingRow } from "./ui/render-processing-row.js";
 import { renderScanRow } from "./ui/render-scan-row.js";
+import { renderGlobalStatsPanel } from "./ui/render-global-stats.js";
 
 // Fishing program (from explorer logs)
 const FOGO_FISHING_PROGRAM_ID = new PublicKey("SEAyjT1FUx3JyXJnWt5NtjELDwuU9XsoZeZVPVvweU4");
@@ -99,6 +100,11 @@ function applyPlayerToCalcUI({ els, player }) {
       els.durCurRange.value = String(cur);
     }
   }
+}
+
+function setGlobalStatsHTML(html) {
+  const el = document.getElementById("globalStatsPanel");
+  if (el) el.innerHTML = html;
 }
 
 const statusEl = document.getElementById("chainStatus");
@@ -188,6 +194,8 @@ if (clearMeBtn) {
     setActiveMePill();
   });
 }
+
+setGlobalStatsHTML(renderGlobalStatsPanel(null));
 
 // ----------------------------
 // Global ProcessFish watcher
@@ -478,7 +486,7 @@ async function scanPlayersOnce() {
 
     setPlayerStore(rows /*, { byAccountPairs }*/);
     savePlayersCache();
-    
+
     const stats = window.computeCoreStats(window.playerStore?.players || []);
     window.latestPlayerStats = stats;
 
@@ -543,6 +551,8 @@ if (btn) {
         ownerPubkey,
       });
 
+      setGlobalStatsHTML(renderGlobalStatsPanel(globalState));
+      
       // ✅ NEW: populate durability throughput card from loaded player
       applyPlayerToCalcUI({ els, player });
 
