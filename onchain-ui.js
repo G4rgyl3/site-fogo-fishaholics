@@ -317,6 +317,75 @@ function setScanCount(s) {
   if (el) el.textContent = s;
 }
 
+// ---- Player scan store (full decoded states) ----
+window.playerStore = window.playerStore || {
+  // array of decoded PlayerState objects (whatever decodePlayerState returns)
+  players: [],
+  // maps owner base58 -> decoded PlayerState
+  byOwner: new Map(),
+  // maps account pubkey base58 -> decoded PlayerState (optional, if you track it)
+  byAccount: new Map(),
+  lastUpdatedMs: 0,
+};
+
+function setPlayerStore(players, { byAccountPairs = null } = {}) {
+  const byOwner = new Map();
+  for (const p of players) {
+    const owner = p?.owner?.toBase58?.();
+    if (owner) byOwner.set(owner, p);
+  }
+
+  window.playerStore.players = players;
+  window.playerStore.byOwner = byOwner;
+
+  if (byAccountPairs) {
+    const m = new Map();
+    for (const [acct, p] of byAccountPairs) m.set(acct, p);
+    window.playerStore.byAccount = m;
+  }
+
+  window.playerStore.lastUpdatedMs = Date.now();
+}
+
+function playerToJSON(p) {
+  return {
+    owner: p?.owner?.toBase58?.() || null,
+    unprocessedFish: p?.unprocessedFish?.toString?.() ?? null,
+    // add other fields you care about:
+    // rodLevel: p.rodLevel ?? null,
+    // durability: p.durability ?? null,
+    // isHoneypot: p.isHoneypot ?? null,
+    // lastActionTs: p.lastActionTs ?? null,
+  };
+}
+
+function savePlayersCache() {
+  try {
+    const payload = {
+      v: 1,
+      ts: Date.now(),
+      players: window.playerStore.players.map(playerToJSON),
+    };
+    localStorage.setItem("players_cache_v1", JSON.stringify(payload));
+  } catch (e) {
+    console.warn("savePlayersCache failed", e);
+  }
+}
+
+function loadPlayersCache() {
+  try {
+    const raw = localStorage.getItem("players_cache_v1");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+// Convenience for calculations
+window.getPlayerByOwner = (ownerBase58) => window.playerStore.byOwner.get(ownerBase58) || null;
+window.getAllPlayers = () => window.playerStore.players.slice();
+
 async function scanPlayersOnce() {
   const topUl = document.getElementById("scanTop");
   if (topUl) topUl.innerHTML = "";
@@ -407,6 +476,9 @@ async function scanPlayersOnce() {
       setScanBarPct(Math.min(95, prog));
     }
 
+    setPlayerStore(rows /*, { byAccountPairs }*/);
+    savePlayersCache();
+    
     // 4) Sort + render top 10
     rows.sort((a, b) => {
       const aa = a?.unprocessedFish ?? 0n;
