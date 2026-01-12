@@ -27,6 +27,7 @@ import { renderChainSnapshot } from "./ui/render-snapshot.js";
 import { renderProcessingRow } from "./ui/render-processing-row.js";
 import { renderScanRow } from "./ui/render-scan-row.js";
 import { renderGlobalStatsPanel } from "./ui/render-global-stats.js";
+import { renderLatestPlayerStatsPanel } from "./ui/render-latest-player-stats.js";
 
 // Fishing program (from explorer logs)
 const FOGO_FISHING_PROGRAM_ID = new PublicKey("SEAyjT1FUx3JyXJnWt5NtjELDwuU9XsoZeZVPVvweU4");
@@ -105,6 +106,12 @@ function applyPlayerToCalcUI({ els, player }) {
 function setGlobalStatsHTML(html) {
   const el = document.getElementById("globalStatsPanel");
   if (el) el.innerHTML = html;
+}
+
+function renderLatestPlayerStatsIntoPanel(stats) {
+  const el = document.getElementById("latestPlayerStatsPanel");
+  if (!el) return;
+  el.innerHTML = renderLatestPlayerStatsPanel(stats);
 }
 
 const statusEl = document.getElementById("chainStatus");
@@ -489,6 +496,7 @@ async function scanPlayersOnce() {
 
     const stats = window.computeCoreStats(window.playerStore?.players || []);
     window.latestPlayerStats = stats;
+    renderLatestPlayerStatsIntoPanel(stats);
 
     // 4) Sort + render top 10
     rows.sort((a, b) => {
@@ -552,7 +560,7 @@ if (btn) {
       });
 
       setGlobalStatsHTML(renderGlobalStatsPanel(globalState));
-      
+
       // ✅ NEW: populate durability throughput card from loaded player
       applyPlayerToCalcUI({ els, player });
 
