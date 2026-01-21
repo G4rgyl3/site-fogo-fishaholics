@@ -202,7 +202,9 @@ if (clearMeBtn) {
   });
 }
 
+//Start with no data
 setGlobalStatsHTML(renderGlobalStatsPanel(null));
+renderLatestPlayerStatsIntoPanel(null);
 
 // ----------------------------
 // Global ProcessFish watcher
@@ -494,7 +496,14 @@ async function scanPlayersOnce() {
     setPlayerStore(rows /*, { byAccountPairs }*/);
     savePlayersCache();
 
-    const stats = window.computeCoreStats(window.playerStore?.players || []);
+    const owners = rows.map(p => p?.owner?.toBase58?.()).filter(Boolean);
+    const uniqueOwners = new Set(owners);
+
+    console.log("rows:", rows.length);
+    console.log("unique owners:", uniqueOwners.size);
+    console.log("dupes:", rows.length - uniqueOwners.size);
+
+    const stats = window.formatCoreStats(window.computeCoreStats(window.playerStore?.players || []));
     window.latestPlayerStats = stats;
     renderLatestPlayerStatsIntoPanel(stats);
 

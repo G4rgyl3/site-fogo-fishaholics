@@ -5,7 +5,7 @@ import {
   fmtTimeFromI64,
 } from "../onchain-ui-formatters.js";
 
-function statTile({ icon, label, value, sub }) {
+export function statTile({ icon, label, value, sub }) {
   return `
     <div class="gstat">
       <div class="gstatIcon" aria-hidden="true">${icon}</div>

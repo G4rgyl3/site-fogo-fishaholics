@@ -1,17 +1,10 @@
 // ui/render-latest-player-stats.js
 
-function tile({ icon, label, value, sub }) {
-  return `
-    <div class="statTile">
-      <div class="statIcon" aria-hidden="true">${icon}</div>
-      <div class="statMeta">
-        <div class="statLabel">${label}</div>
-        <div class="statValue">${value ?? "—"}</div>
-        ${sub ? `<div class="statSub">${sub}</div>` : ``}
-      </div>
-    </div>
-  `;
-}
+import {
+  formatFishFromRaw,
+} from "../onchain-ui-formatters.js";
+import { statTile } from './render-global-stats.js';
+
 
 function fmtNum(x, dp = 2) {
   if (x == null) return "—";
@@ -25,16 +18,6 @@ function fmtInt(x) {
   const n = Number(x);
   if (!Number.isFinite(n)) return String(x);
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-}
-
-function safeFish(x) {
-  // formatted stats already pass strings like "967,985.833058"
-  if (x == null) return "—";
-  if (typeof x === "string") return x;
-  if (typeof window.formatFishFromRaw === "function" && typeof x === "bigint") {
-    return window.formatFishFromRaw(x, { maxFrac: 6 });
-  }
-  return typeof x === "bigint" ? x.toString() : String(x);
 }
 
 function rodCountsSummary(countsByLevel) {
@@ -64,8 +47,41 @@ function rodCountsSummary(countsByLevel) {
   return "";
 }
 
+function scanner(){
+  return `<div style="width:100%;">
+            <div id="playerScanCard">
+            <div class="titleRow">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <button id="scanPlayers">Scan players</button>
+                <span class="pill" id="scanStatus">idle</span>
+              </div>
+            </div>
+
+            <div class="scanBarWrap" style="margin-top: 12px;">
+              <div class="scanBar" id="scanBar"></div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;">
+              <div class="sub" id="scanCount">—</div>
+              <div class="sub">Top unprocessed (sample)</div>
+            </div>
+
+            <ul class="clean" id="scanTop" style="margin-top:10px;"></ul>
+            </div>
+          </div>`;
+}
+
 export function renderLatestPlayerStatsPanel(stats) {
-  if (!stats) return `<div class="sub" style="opacity:.8;">No stats yet.</div>`;
+  if (!stats) {
+     return `
+      <div class="gstatsPanel">
+        <div class="gstatsHead">
+          <div class="gstatsTitle">🌍 Player Statistics</div>
+          ${scanner()}
+          <div class="gstatsSub">No data loaded yet.</div>
+        </div>
+      </div>
+    `;
+  }
 
   const players = stats.players ?? stats.playersCount ?? null;
 
@@ -92,18 +108,25 @@ export function renderLatestPlayerStatsPanel(stats) {
   if (rodTop) rodSubBits.push(rodTop);
 
   const upSubBits = [];
-  if (upAvg != null) upSubBits.push(`avg ${safeFish(upAvg)}`);
+  if (upAvg != null) upSubBits.push(`avg ${formatFishFromRaw(upAvg)}`);
   if (upSamples != null) upSubBits.push(`${fmtInt(upSamples)} samples`);
 
   return `
-    <div class="statsPanelGrid">
-      ${tile({
+    <div class="gstatsPanel">
+      <div class="gstatsHead">
+        <div class="gstatsTitle">🌍 Player Statistics</div>
+        ${scanner()}
+        <div class="gstatsSub">Live snapshot from chain</div>
+      </div>
+
+      <div class="gstatsGrid">
+      ${statTile({
         icon: "🧑‍🤝‍🧑",
         label: "Players scanned",
         value: players != null ? fmtInt(players) : "—",
       })}
 
-      ${tile({
+      ${statTile({
         icon: "🎣",
         label: "Rod level (min / med / max)",
         value:
@@ -113,21 +136,22 @@ export function renderLatestPlayerStatsPanel(stats) {
         sub: rodSubBits.join(" · "),
       })}
 
-      ${tile({
+      ${statTile({
         icon: "🐟",
         label: "Total unprocessed",
-        value: safeFish(upTotal),
+        value: formatFishFromRaw(upTotal),
       })}
 
-      ${tile({
+      ${statTile({
         icon: "📊",
         label: "Unprocessed (min / med / max)",
         value:
           upMin != null && upMed != null && upMax != null
-            ? `${safeFish(upMin)} / ${safeFish(upMed)} / ${safeFish(upMax)}`
+            ? `${formatFishFromRaw(upMin)} / ${formatFishFromRaw(upMed)} / ${formatFishFromRaw(upMax)}`
             : "—",
         sub: upSubBits.join(" · "),
       })}
     </div>
+  </div>
   `;
 }

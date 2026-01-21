@@ -16,8 +16,71 @@
       <div id="globalStatsPanel"></div>
     </div>
 
-    <!-- Latest scan-derived stats (like global stats panel) -->
-    <div id="latestPlayerStatsPanel" class="statsPanel" style="margin-top:12px;"></div>
+    <div class="card full" id="playerStatsCard">
+      <div id="latestPlayerStatsPanel"></div>
+    </div>
+    
+    <!--Fish processing feed-->
+    <div class="card full" id="processingCard">
+      <div class="titleRow">
+        <div>
+          <div class="title">🐟 Fish Processing</div>
+          <div class="sub">Detects on-chain <code>process_fish</code> and logs player + amount.</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label class="pill" style="cursor:pointer; user-select:none;">
+            <input id="procLiveToggle" type="checkbox" style="margin:0 8px 0 0; transform: translateY(1px);" checked />
+            Live
+          </label>
+          <span class="pill" id="procStatus">starting…</span>
+        </div>
+      </div>
+
+      <div class="control" style="margin-top: 12px;">
+        <div class="label">Rolling log (latest first)</div>
+        <ul class="clean" id="processedFeed"></ul>
+      </div>
+    </div>
+
+    <!--Player stats-->
+    <div class="card">
+      <div class="titleRow">
+        <div>
+          <div class="title">📡 Player Stats</div>
+          <div class="sub">Live on-chain state + events.</div>
+        </div>
+      </div>
+
+      <div class="onchainGrid" style="grid-template-columns: 1fr; margin-top: 0;">
+        <div class="control">
+          <div class="control-top">
+            <div class="label">On-chain sync</div>
+            <span class="pill" id="chainStatus">idle</span>
+          </div>
+          <div class="valueBox" style="justify-content: space-between; width: 100%;">
+            <input id="ownerAddr" placeholder="Owner wallet pubkey (optional)" style="width: 100%; max-width: 320px;" />
+            <button id="syncChain">Load from chain</button>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="setAsMe" title="Save this owner as your active player" disabled>Set as me</button>
+              <button id="clearMe" title="Clear active player">Clear</button>
+            </div>
+            <span class="pill" id="activeMe">me: —</span>
+          </div>
+        </div>
+
+        <div class="control">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div class="label" style="font-size: 14px;">On-chain snapshot</div>
+            <span class="pill" id="chainUpdated">—</span>
+          </div>
+          <div id="chainSnapshot" style="margin-top:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4;">
+            <div style="opacity:0.7;">No data loaded yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!--Fish per cast-->
     <div class="card">
@@ -124,93 +187,6 @@
 
       <footer>Uses current “Expected FISH / Cast” from the calculator above.</footer>
     </div>
-
-    <!--Player stats-->
-    <div class="card">
-      <div class="titleRow">
-        <div>
-          <div class="title">📡 Player Stats</div>
-          <div class="sub">Live on-chain state + events.</div>
-        </div>
-      </div>
-
-      <div class="onchainGrid" style="grid-template-columns: 1fr; margin-top: 0;">
-        <div class="control">
-          <div class="control-top">
-            <div class="label">On-chain sync</div>
-            <span class="pill" id="chainStatus">idle</span>
-          </div>
-          <div class="valueBox" style="justify-content: space-between; width: 100%;">
-            <input id="ownerAddr" placeholder="Owner wallet pubkey (optional)" style="width: 100%; max-width: 320px;" />
-            <button id="syncChain">Load from chain</button>
-          </div>
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;">
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button id="setAsMe" title="Save this owner as your active player" disabled>Set as me</button>
-              <button id="clearMe" title="Clear active player">Clear</button>
-            </div>
-            <span class="pill" id="activeMe">me: —</span>
-          </div>
-        </div>
-
-        <div class="control">
-          <div style="display:flex; align-items:center; justify-content:space-between;">
-            <div class="label" style="font-size: 14px;">On-chain snapshot</div>
-            <span class="pill" id="chainUpdated">—</span>
-          </div>
-          <div id="chainSnapshot" style="margin-top:10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.4;">
-            <div style="opacity:0.7;">No data loaded yet.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!--Dedicated Player Scanner card (separate from Player Stats) -->
-    <div class="card" id="playerScanCard">
-      <div class="titleRow">
-        <div>
-          <div class="title">🧭 Player Scanner</div>
-          <div class="sub">Scan all PlayerState accounts (filtered by discriminator) and show a quick leaderboard sample.</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <button id="scanPlayers">Scan players</button>
-          <span class="pill" id="scanStatus">idle</span>
-        </div>
-      </div>
-
-      <div class="scanBarWrap" style="margin-top: 12px;">
-        <div class="scanBar" id="scanBar"></div>
-      </div>
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap;">
-        <div class="sub" id="scanCount">—</div>
-        <div class="sub">Top unprocessed (sample)</div>
-      </div>
-
-      <ul class="clean" id="scanTop" style="margin-top:10px;"></ul>
-    </div>
-
-    <!--Fish processing feed-->
-    <div class="card full" id="processingCard">
-      <div class="titleRow">
-        <div>
-          <div class="title">🐟 Fish Processing</div>
-          <div class="sub">Detects on-chain <code>process_fish</code> and logs player + amount.</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <label class="pill" style="cursor:pointer; user-select:none;">
-            <input id="procLiveToggle" type="checkbox" style="margin:0 8px 0 0; transform: translateY(1px);" checked />
-            Live
-          </label>
-          <span class="pill" id="procStatus">starting…</span>
-        </div>
-      </div>
-
-      <div class="control" style="margin-top: 12px;">
-        <div class="label">Rolling log (latest first)</div>
-        <ul class="clean" id="processedFeed"></ul>
-      </div>
-    </div>
-
   </div>
 
   <!-- Your math lives here -->
